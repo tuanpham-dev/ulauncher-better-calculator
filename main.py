@@ -1,5 +1,5 @@
 import os
-from expr import Expr
+from py_expression_eval import Parser
 from ulauncher.api.shared.action.RenderResultListAction import RenderResultListAction
 from ulauncher.api.shared.item.ExtensionResultItem import ExtensionResultItem
 from ulauncher.api.shared.event import KeywordQueryEvent, ItemEnterEvent
@@ -20,7 +20,8 @@ class BetterCalculator(EventListener):
             return
 
         try:
-            result = Expr(expression).eval()
+            parser = Parser()
+            result = parser.parse(expression).evaluate({})
             return RenderResultListAction([
                 ExtensionResultItem(
                     icon='icon.svg',
