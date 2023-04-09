@@ -1,59 +1,83 @@
 import os
 from py_expression_eval import Parser
-from ulauncher.api.shared.action.RenderResultListAction import RenderResultListAction
-from ulauncher.api.shared.item.ExtensionResultItem import ExtensionResultItem
-from ulauncher.api.shared.event import KeywordQueryEvent, ItemEnterEvent
+from ulauncher.api.client.Extension import Extension
 from ulauncher.api.client.EventListener import EventListener
+from ulauncher.api.shared.event import KeywordQueryEvent, ItemEnterEvent
+from ulauncher.api.shared.item.ExtensionResultItem import ExtensionResultItem
+from ulauncher.api.shared.action.RenderResultListAction import RenderResultListAction
+from ulauncher.api.shared.action.ExtensionCustomAction import ExtensionCustomAction
 
-class BetterCalculator(EventListener):
+class BetterCalculatorExtension(Extension):
+    def __init__(self):
+        super(BetterCalculatorExtension, self).__init__()
+        self.subscribe(KeywordQueryEvent, KeywordQueryEventListener())
+        self.subscribe(ItemEnterEvent, ItemEnterEventListener())
 
+
+class KeywordQueryEventListener(EventListener):
     def on_event(self, event, extension):
-        if isinstance(event, KeywordQueryEvent):
-            return self.handle_query(event)
-        elif isinstance(event, ItemEnterEvent):
-            return self.handle_enter(event)
+        expression = event.get_argument() or ''
 
-    def handle_query(self, event):
-        expression = event.get_argument()
+        if expression == '':
+            return RenderResultListAction([])
 
-        if not expression:
-            return
+        fixed_expression = self.fix_missing_brackets(expression)
 
         try:
             parser = Parser()
-            result = parser.parse(expression).evaluate({})
+            result = self.convert_float_to_int(parser.parse(fixed_expression).evaluate({}))
             return RenderResultListAction([
                 ExtensionResultItem(
-                    icon='icon.svg',
-                    name=f"Result: {result}",
-                    on_enter=ItemEnterEvent(f"Copy {result} to clipboard")
+                    icon='images/icon.svg',
+                    name=str(result),
+                    description=fixed_expression,
+                    on_enter=ExtensionCustomAction(f'Copy {result}')
                 )
             ])
         except Exception:
             return RenderResultListAction([
                 ExtensionResultItem(
-                    icon='icon.svg',
-                    name="Invalid expression",
+                    icon='images/icon.svg',
+                    name='Invalid Expression',
                     on_enter=None
                 )
             ])
 
-    def handle_enter(self, event):
+    def fix_missing_brackets(self, expression):
+        open_bracket_count = 0
+        close_bracket_count = 0
+        pending_brackets = []
+
+        for char in expression:
+            if char == '(':
+                open_bracket_count += 1
+            elif char == ')':
+                if open_bracket_count > close_bracket_count:
+                    close_bracket_count += 1
+                else:
+                    pending_brackets.append('(')
+
+        missing_close_brackets = open_bracket_count - close_bracket_count
+        expression = ''.join(pending_brackets) + expression
+        expression += ')' * missing_close_brackets
+
+        return expression
+
+    def convert_float_to_int(self, number):
+        if type(number) != int and number.is_integer():
+            return int(number)
+        else:
+            return number
+
+
+class ItemEnterEventListener(EventListener):
+    def on_event(self, event, extension):
         data = event.get_data()
+
         if data.startswith('Copy '):
             value = data[len('Copy '):]
             os.system(f'echo -n "{value}" | xclip -selection clipboard')
+ 
 
 if __name__ == '__main__':
-    from ulauncher.api.client.Extension import Extension
-    from ulauncher.api.client.Client import Client
-    from ulauncher.api.client.ClientMeta import ClientMeta
-    from ulauncher.api.client.ClientException import ClientException
-
-    meta = ClientMeta('Better Calculator')
-    extension = Extension(meta)
-    extension.set_event_listener(BetterCalculator())
-    try:
-        Client(extension).run()
-    except ClientException as e:
-        print('Error: %s' % e.get_message())
+    BetterCalculatorExtension().run()
