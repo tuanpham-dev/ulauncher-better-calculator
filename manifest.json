@@ -1,0 +1,23 @@
+{
+  "required_api_version": "^2.0.0",
+  "name": "Better Caculator",
+  "description": "A calculator extension for Ulauncher",
+  "developer_name": "Tuan pham",
+  "icon": "images/calculator-icon.svg",
+  "python_version": "3.8",
+  "ulauncher_version": "5.x",
+  "preferences": [
+    {
+      "id": "keyword",
+      "type": "keyword",
+      "name": "Keyword",
+      "description": "The keyword to use for the calculator",
+      "default_value": "="
+    }
+  ],
+  "dependencies": {
+    "python": {
+      "file": "requirements.txt"
+    }
+  }
+}
